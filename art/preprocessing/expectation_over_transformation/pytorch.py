@@ -96,9 +96,10 @@ class EoTPyTorch(PreprocessorPyTorch):
                 x_preprocess_list.append(x_preprocess)
 
                 if y is not None and y_preprocess_i is not None:
-                    y_preprocess_list.append(y_preprocess_i)
+                    y_preprocess_list.append(y_preprocess_i)            
 
         x_preprocess = torch.stack(x_preprocess_list, dim=0)
+        
         if y is None:
             y_preprocess = y
         else:

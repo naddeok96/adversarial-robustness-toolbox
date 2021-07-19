@@ -169,6 +169,7 @@ class PyTorchEstimator(NeuralNetworkMixin, LossGradientsMixin, BaseEstimator):
         if self.all_framework_preprocessing and not (not input_is_tensor and x.dtype == np.object):
             if not input_is_tensor:
                 # Convert np arrays to torch tensors.
+                
                 x = torch.tensor(x, device=self._device)
                 if y is not None:
                     y = torch.tensor(y, device=self._device)
@@ -180,6 +181,7 @@ class PyTorchEstimator(NeuralNetworkMixin, LossGradientsMixin, BaseEstimator):
                             x, y = preprocess.forward(x, y)
                     else:
                         if preprocess.apply_predict:
+                            
                             x, y = preprocess.forward(x, y)
                 return x, y
 

@@ -748,7 +748,9 @@ class PyTorchClassifier(ClassGradientsMixin, ClassifierMixin, PyTorchEstimator):
                 y_grad = y.clone().detach()
             else:
                 y_grad = torch.tensor(y).to(self._device)
+
             inputs_t, y_preprocessed = self._apply_preprocessing(x_grad, y=y_grad, fit=False, no_grad=False)
+            
         elif isinstance(x, np.ndarray):
             x_preprocessed, y_preprocessed = self._apply_preprocessing(x, y=y, fit=False, no_grad=True)
             x_grad = torch.from_numpy(x_preprocessed).to(self._device)

@@ -134,7 +134,7 @@ class Preprocessor(abc.ABC):
         """
         raise NotImplementedError
 
-
+ 
 class PreprocessorPyTorch(Preprocessor):
     """
     Abstract base class for preprocessing defences implemented in PyTorch that support efficient preprocessor-chaining.
