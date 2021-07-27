@@ -138,7 +138,6 @@ class ProjectedGradientDescentPyTorch(ProjectedGradientDescentCommon):
 
         # Ensure eps is broadcastable
         self._check_compatibility_input_and_eps(x=x)
-        print("Compatable")
 
         # Check whether random eps is enabled
         self._random_eps()
@@ -173,8 +172,6 @@ class ProjectedGradientDescentPyTorch(ProjectedGradientDescentCommon):
         data_loader = torch.utils.data.DataLoader(
             dataset=dataset, batch_size=self.batch_size, shuffle=False, drop_last=False
         )
-        print("data loader done")
-
         # Start to compute adversarial examples
         adv_x = x.astype(ART_NUMPY_DTYPE)
 
@@ -265,8 +262,7 @@ class ProjectedGradientDescentPyTorch(ProjectedGradientDescentCommon):
             mask = mask.to(self.estimator.device)
 
         for i_max_iter in range(self.max_iter):
-            self._i_max_iter = i_max_iter
-            print("Iter:", i_max_iter)
+            self._i_max_iter = i_max_iter            
             adv_x = self._compute_torch(
                 adv_x,
                 inputs,
@@ -301,12 +297,7 @@ class ProjectedGradientDescentPyTorch(ProjectedGradientDescentCommon):
         tol = 10e-8
 
         # Get gradient wrt loss; invert it if attack is targeted
-        print(self.targeted)
-        # print(x.is_cuda, y.is_cuda, int(self.targeted).is_cuda)
-        print("Grad")
         grad = self.estimator.loss_gradient(x=x, y=y) * (1 - 2 * int(self.targeted))
-        print("Done Grad")
-        exit()
         
         # Write summary
         if self.summary_writer is not None:
@@ -359,7 +350,6 @@ class ProjectedGradientDescentPyTorch(ProjectedGradientDescentCommon):
 
         assert x.shape == grad.shape
 
-        print("Out")
         return grad
 
     def _apply_perturbation(  # pylint: disable=W0221
@@ -451,8 +441,6 @@ class ProjectedGradientDescentPyTorch(ProjectedGradientDescentCommon):
 
         # Recompute x_adv
         x_adv = perturbation + x_init
-
-        exit()
         return x_adv
 
     def _projection(

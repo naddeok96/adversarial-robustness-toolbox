@@ -81,30 +81,38 @@ class EoTPyTorch(PreprocessorPyTorch):
         """
         import torch  # lgtm [py/repeated-import]
 
-        x_preprocess_list = list()
-        y_preprocess_list: List["torch.Tensor"] = list()
+        # Determine batch size
+        batch_size = x.size(0)
+        channels   = x.size(1)
+        width      = x.size(2)
+        height     = x.size(3)
 
-        for i_image in range(x.shape[0]):
-            for _ in range(self.nb_samples):
-                x_i = x[i_image]
-                y_i: Optional["torch.Tensor"]
-                if y is not None:
-                    y_i = y[i_image]
-                else:
-                    y_i = None
-                x_preprocess, y_preprocess_i = self._transform(x_i, y_i)
-                x_preprocess_list.append(x_preprocess)
+        num_classes = y.size(1) if y is not None else None
 
-                if y is not None and y_preprocess_i is not None:
-                    y_preprocess_list.append(y_preprocess_i)            
+        # Initalize Preprocessing
+        x_preprocess = torch.empty((batch_size * self.nb_samples, channels, width, height))
+        y_preprocess = None if y is None else torch.empty((batch_size * self.nb_samples, num_classes))
 
-        x_preprocess = torch.stack(x_preprocess_list, dim=0)
-        
-        if y is None:
-            y_preprocess = y
-        else:
-            y_preprocess = torch.stack(y_preprocess_list, dim=0)
+        # Move to GPU
+        if x.is_cuda:
+            x_preprocess = x_preprocess.cuda()
+            y_preprocess = None if y is None else y_preprocess.cuda()
 
+        # Iterate through Samples
+        base_index = range(0, (self.nb_samples * batch_size) - 1, self.nb_samples)
+        for i in range(self.nb_samples):
+            # Preprocess Batch
+            x_preprocess_i, y_preprocess_i = self._transform(x, y)
+            
+            # Determine Index
+            index = [b + i for b in base_index]
+
+            # Add batch to preprocessed 
+            x_preprocess[index] = x_preprocess_i
+            if y is not None:
+                y_preprocess[index] = y_preprocess_i 
+
+        # Return Preprocessed
         return x_preprocess, y_preprocess
 
     def _check_params(self) -> None:

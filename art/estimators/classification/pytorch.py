@@ -727,6 +727,7 @@ class PyTorchClassifier(ClassGradientsMixin, ClassifierMixin, PyTorchEstimator):
         # Backpropagation through RNN modules in eval mode raises RuntimeError due to cudnn issues and require training
         # mode, i.e. RuntimeError: cudnn RNN backward can only be called in training mode. Therefore, if the model is
         # an RNN type we always use training mode but freeze batch-norm and dropout layers if training_mode=False.
+
         if self.is_rnn:
             self._model.train(mode=True)
             if not training_mode:
@@ -744,6 +745,7 @@ class PyTorchClassifier(ClassGradientsMixin, ClassifierMixin, PyTorchEstimator):
             else:
                 x_grad = torch.tensor(x).to(self._device)
                 x_grad.requires_grad = True
+
             if isinstance(y, torch.Tensor):
                 y_grad = y.clone().detach()
             else:
@@ -770,7 +772,6 @@ class PyTorchClassifier(ClassGradientsMixin, ClassifierMixin, PyTorchEstimator):
         # Compute the gradient and return
         model_outputs = self._model(inputs_t)
         loss = self._loss(model_outputs[-1], labels_t)  # lgtm [py/call-to-non-callable]
-
         # Clean gradients
         self._model.zero_grad()
 
