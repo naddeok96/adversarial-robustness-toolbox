@@ -44,7 +44,7 @@ class PyTorchEstimator(NeuralNetworkMixin, LossGradientsMixin, BaseEstimator):
         ]
     )
 
-    def __init__(self, device_type: str = "gpu", **kwargs) -> None:
+    def __init__(self, device_type: str = "gpu", device_num : str = "cuda:0", **kwargs) -> None:
         """
         Estimator class for PyTorch models.
 
@@ -67,19 +67,18 @@ class PyTorchEstimator(NeuralNetworkMixin, LossGradientsMixin, BaseEstimator):
             from art.preprocessing.standardisation_mean_std.pytorch import StandardisationMeanStdPyTorch
 
             kwargs["preprocessing"] = StandardisationMeanStdPyTorch(
-                mean=preprocessing[0], std=preprocessing[1], device_type=device_type
+                mean=preprocessing[0], std=preprocessing[1], device_type=device_type, device_num=device_num
             )
 
         super().__init__(**kwargs)
 
-        self._device_type = device_type
-
         # Set device
+        self.device_num  = device_num
+        
         if device_type == "cpu" or not torch.cuda.is_available():
-            self._device = torch.device("cpu")
+            self._device = torch.device("cpu") 
         else:
-            cuda_idx = torch.cuda.current_device()
-            self._device = torch.device("cuda:{}".format(cuda_idx))
+            self._device     = torch.device(self.device_num)
 
         PyTorchEstimator._check_params(self)
 

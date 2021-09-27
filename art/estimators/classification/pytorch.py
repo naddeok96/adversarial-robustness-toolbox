@@ -85,6 +85,7 @@ class PyTorchClassifier(ClassGradientsMixin, ClassifierMixin, PyTorchEstimator):
         postprocessing_defences: Union["Postprocessor", List["Postprocessor"], None] = None,
         preprocessing: "PREPROCESSING_TYPE" = (0.0, 1.0),
         device_type: str = "gpu",
+        device_num : str = "cuda:0"
     ) -> None:
         """
         Initialization specifically for the PyTorch-based implementation.
@@ -126,16 +127,20 @@ class PyTorchClassifier(ClassGradientsMixin, ClassifierMixin, PyTorchEstimator):
             postprocessing_defences=postprocessing_defences,
             preprocessing=preprocessing,
             device_type=device_type,
+            device_num=device_num,
         )
         self._nb_classes = nb_classes
         self._input_shape = input_shape
-        self._model = self._make_model_wrapper(model)
+        self.device_num  = device_num
+        self._device     = torch.device(self.device_num)
+        self._model = self._make_model_wrapper(self._device, model)
         self._loss = loss
         self._optimizer = optimizer
         self._use_amp = use_amp
         self._learning_phase: Optional[bool] = None
         self._opt_level = opt_level
         self._loss_scale = loss_scale
+        
 
         # Check if model is RNN-like to decide if freezing batch-norm and dropout layers might be required for loss and
         # class gradient calculation
@@ -751,6 +756,8 @@ class PyTorchClassifier(ClassGradientsMixin, ClassifierMixin, PyTorchEstimator):
             else:
                 y_grad = torch.tensor(y).to(self._device)
 
+            x_grad = x_grad.to(self._device)
+            y_grad = y_grad.to(self._device)
             inputs_t, y_preprocessed = self._apply_preprocessing(x_grad, y=y_grad, fit=False, no_grad=False)
             
         elif isinstance(x, np.ndarray):
@@ -767,10 +774,12 @@ class PyTorchClassifier(ClassGradientsMixin, ClassifierMixin, PyTorchEstimator):
         if isinstance(y_preprocessed, np.ndarray):
             labels_t = torch.from_numpy(y_preprocessed).to(self._device)
         else:
-            labels_t = y_preprocessed
+            labels_t = y_preprocessed.to(self._device)
 
         # Compute the gradient and return
         model_outputs = self._model(inputs_t)
+        labels_t = labels_t.to(self._device)
+        
         loss = self._loss(model_outputs[-1], labels_t)  # lgtm [py/call-to-non-callable]
         # Clean gradients
         self._model.zero_grad()
@@ -919,10 +928,10 @@ class PyTorchClassifier(ClassGradientsMixin, ClassifierMixin, PyTorchEstimator):
         model = state["inner_model"]
         model.load_state_dict(torch.load(str(full_path) + ".model"))
         model.eval()
-        self._model = self._make_model_wrapper(model)
+        self._model = self._make_model_wrapper(self._device, model)
 
         # Recover device
-        self._device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self._device = torch.device(self.device_num)
         self._model.to(self._device)
 
         # Recover optimizer
@@ -952,7 +961,7 @@ class PyTorchClassifier(ClassGradientsMixin, ClassifierMixin, PyTorchEstimator):
 
         return repr_
 
-    def _make_model_wrapper(self, model: "torch.nn.Module") -> "torch.nn.Module":
+    def _make_model_wrapper(self, _device : str, model: "torch.nn.Module") -> "torch.nn.Module":
         # Try to import PyTorch and create an internal class that acts like a model wrapper extending torch.nn.Module
         try:
             import torch.nn as nn
@@ -967,14 +976,17 @@ class PyTorchClassifier(ClassGradientsMixin, ClassifierMixin, PyTorchEstimator):
 
                     import torch  # lgtm [py/repeated-import]
 
-                    def __init__(self, model: torch.nn.Module):
+                    def __init__(self, _device : str,
+                                       model: torch.nn.Module
+                                       ):
                         """
                         Initialization by storing the input model.
 
                         :param model: PyTorch model. The forward function of the model must return the logit output.
                         """
                         super().__init__()
-                        self._model = model
+                        self._device = _device
+                        self._model  = model.to(self._device)
 
                     # pylint: disable=W0221
                     # disable pylint because of API requirements for function
@@ -990,7 +1002,7 @@ class PyTorchClassifier(ClassGradientsMixin, ClassifierMixin, PyTorchEstimator):
                         # pylint: disable=W0212
                         # disable pylint because access to _model required
                         import torch.nn as nn
-
+                        
                         result = []
                         if isinstance(self._model, nn.Sequential):
                             for _, module_ in self._model._modules.items():
@@ -998,6 +1010,8 @@ class PyTorchClassifier(ClassGradientsMixin, ClassifierMixin, PyTorchEstimator):
                                 result.append(x)
 
                         elif isinstance(self._model, nn.Module):
+                            x = x.to(self._device)
+                            self._model  = self._model.to(self._device)
                             x = self._model(x)
                             result.append(x)
 
@@ -1045,7 +1059,7 @@ class PyTorchClassifier(ClassGradientsMixin, ClassifierMixin, PyTorchEstimator):
                 self._model_wrapper = ModelWrapper
 
             # Use model wrapping class to wrap the PyTorch model received as argument
-            return self._model_wrapper(model)
+            return self._model_wrapper(_device, model)
 
         except ImportError:
             raise ImportError("Could not find PyTorch (`torch`) installation.") from ImportError

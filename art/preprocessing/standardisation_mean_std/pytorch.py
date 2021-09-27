@@ -47,6 +47,7 @@ class StandardisationMeanStdPyTorch(PreprocessorPyTorch):
         apply_fit: bool = True,
         apply_predict: bool = True,
         device_type: str = "gpu",
+        device_num:  str = "cuda:0",
     ):
         """
         Create an instance of StandardisationMeanStdPyTorch.
@@ -66,11 +67,12 @@ class StandardisationMeanStdPyTorch(PreprocessorPyTorch):
         self._broadcastable_std = None
 
         # Set device
+        self.device_num = device_num
         if device_type == "cpu" or not torch.cuda.is_available():
             self._device = torch.device("cpu")
         else:
             cuda_idx = torch.cuda.current_device()
-            self._device = torch.device("cuda:{}".format(cuda_idx))
+            self._device = torch.device(self.device_num)
 
     def forward(
         self, x: "torch.Tensor", y: Optional["torch.Tensor"] = None
@@ -86,7 +88,7 @@ class StandardisationMeanStdPyTorch(PreprocessorPyTorch):
 
         if self._broadcastable_mean is None:
             self._broadcastable_mean, self._broadcastable_std = broadcastable_mean_std(x, self.mean, self.std)
-
+            
         x_norm = x - torch.tensor(self._broadcastable_mean, device=self._device, dtype=torch.float32)
         x_norm = x_norm / torch.tensor(self._broadcastable_std, device=self._device, dtype=torch.float32)
 
